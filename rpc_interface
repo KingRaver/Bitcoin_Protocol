@@ -1,0 +1,40 @@
+// rpc.h - JSON-RPC interface
+
+class JSONRequest
+{
+public:
+    Value id;
+    string strMethod;
+    Array params;
+};
+
+class HTTPRequest
+{
+public:
+    string strMethod;
+    string strURI;
+    string strHost;
+    map<string, string> mapHeaders;
+    string strContent;
+};
+
+// RPC commands
+Value getblockcount(const Array& params, bool fHelp);
+Value getconnectioncount(const Array& params, bool fHelp);
+Value getdifficulty(const Array& params, bool fHelp);
+Value getgenerate(const Array& params, bool fHelp);
+Value setgenerate(const Array& params, bool fHelp);
+Value gethashespersec(const Array& params, bool fHelp);
+Value getinfo(const Array& params, bool fHelp);
+Value getmemorypool(const Array& params, bool fHelp);
+Value getnewaddress(const Array& params, bool fHelp);
+Value getreceivedbyaddress(const Array& params, bool fHelp);
+Value getblock(const Array& params, bool fHelp);
+Value sendtoaddress(const Array& params, bool fHelp);
+Value stop(const Array& params, bool fHelp);
+Value validateaddress(const Array& params, bool fHelp);
+
+// HTTP server for RPC
+void ThreadRPCServer(void* parg);
+bool StartHTTPServer();
+void StopHTTPServer();

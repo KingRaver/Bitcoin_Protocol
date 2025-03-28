@@ -1,0 +1,46 @@
+// main.h - Transaction definitions
+
+class CTxIn
+{
+public:
+    COutPoint prevout;
+    CScript scriptSig;
+    uint32_t nSequence;
+    
+    CTxIn(COutPoint prevoutIn, CScript scriptSigIn=CScript(), uint32_t nSequenceIn=UINT_MAX);
+    CTxIn(uint256 hashPrevTx, uint32_t nOut, CScript scriptSigIn=CScript(), uint32_t nSequenceIn=UINT_MAX);
+};
+
+class CTxOut
+{
+public:
+    int64_t nValue;
+    CScript scriptPubKey;
+    
+    CTxOut(int64_t nValueIn, CScript scriptPubKeyIn);
+};
+
+class COutPoint
+{
+public:
+    uint256 hash;
+    uint32_t n;
+    
+    COutPoint(uint256 hashIn, uint32_t nIn);
+};
+
+class CTransaction
+{
+public:
+    uint32_t nVersion;
+    vector<CTxIn> vin;
+    vector<CTxOut> vout;
+    uint32_t nLockTime;
+    
+    uint256 GetHash() const;
+    bool IsValid() const;
+};
+
+// UTXO set tracking (simplified in original code)
+extern map<COutPoint, CTxOut> mapUnspent;
+extern map<uint256, CTransaction> mapTransactions;

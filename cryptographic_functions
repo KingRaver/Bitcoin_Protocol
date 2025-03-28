@@ -1,0 +1,48 @@
+// key.h - Cryptographic primitives
+
+class CKey
+{
+public:
+    // Key data
+    vector<unsigned char> vch;
+    
+    // Constructors
+    CKey();
+    CKey(const CKey& b);
+    
+    // Key operations
+    void MakeNewKey();
+    bool IsValid() const;
+    bool IsCompressed() const;
+    
+    // Cryptographic functions
+    bool Sign(uint256 hash, vector<unsigned char>& vchSig) const;
+    bool Verify(uint256 hash, const vector<unsigned char>& vchSig) const;
+    bool SetPrivKey(const CPrivKey& vchPrivKey);
+    bool SetPubKey(const vector<unsigned char>& vchPubKey);
+    CPrivKey GetPrivKey() const;
+    vector<unsigned char> GetPubKey() const;
+};
+
+// Hash functions
+inline uint160 Hash160(const vector<unsigned char>& vch)
+{
+    uint256 hash1;
+    SHA256(&vch[0], vch.size(), (unsigned char*)&hash1);
+    uint160 hash2;
+    RIPEMD160(&hash1, sizeof(hash1), (unsigned char*)&hash2);
+    return hash2;
+}
+
+inline uint256 Hash(const vector<unsigned char>& vch)
+{
+    uint256 hash1;
+    SHA256(&vch[0], vch.size(), (unsigned char*)&hash1);
+    uint256 hash2;
+    SHA256(&hash1, sizeof(hash1), (unsigned char*)&hash2);
+    return hash2;
+}
+
+// Address conversion
+string HashToAddress(uint160 hash160);
+bool AddressToHash160(const string& addr, uint160& hash160Out);

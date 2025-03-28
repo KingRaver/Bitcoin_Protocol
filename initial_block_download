@@ -1,0 +1,63 @@
+// main.cpp - Initial block download
+
+bool IsInitialBlockDownload()
+{
+    if (pindexBest == NULL || (nBestHeight < GetNumBlocksOfPeers() - 144))
+        return true;
+    static int64_t nLastUpdate;
+    static CBlockIndex* pindexLastBest;
+    if (pindexBest != pindexLastBest)
+    {
+        pindexLastBest = pindexBest;
+        nLastUpdate = GetTime();
+    }
+    return (GetTime() - nLastUpdate < 10 &&
+            pindexBest->GetBlockTime() < GetTime() - 24 * 60 * 60);
+}
+
+// In ThreadMessageHandler2
+if (IsInitialBlockDownload() && vNodes.size() <= 1)
+{
+    Sleep(500);
+    continue;
+}
+
+void ProcessMessages(CNode* pfrom)
+{
+    // ...
+    
+    // ProcessGetBlocks: respond to getblocks messages
+    else if (strCommand == "getblocks")
+    {
+        vector<CBlock> vBlocks;
+        CBlockLocator locator;
+        uint256 hashStop;
+        vRecv >> locator >> hashStop;
+        
+        // Find the last block the caller has in the main chain
+        CBlockIndex* pindex = locator.GetBlockIndex();
+        
+        // Send the rest of the blocks
+        int nLimit = 500;
+        for (; pindex; pindex = pindex->pnext)
+        {
+            vBlocks.push_back(pindex->GetBlockHash());
+            if (--nLimit <= 0 || pindex->GetBlockHash() == hashStop)
+                break;
+        }
+        pfrom->PushMessage("inv", vBlocks);
+    }
+    
+    // ProcessBlock: handle incoming blocks
+    else if (strCommand == "block")
+    {
+        CBlock block;
+        vRecv >> block;
+        
+        printf("received block %s\n", block.GetHash().ToString().substr(0,20).c_str());
+        
+        // Process the block
+        if (ProcessBlock(pfrom, &block))
+            mapAlreadyAsked.erase(CInv(MSG_BLOCK, block.GetHash()));
+    }
+}

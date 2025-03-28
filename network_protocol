@@ -1,0 +1,45 @@
+// net.h - Peer-to-peer networking protocol
+
+class CNode
+{
+public:
+    // Socket connection info
+    SOCKET hSocket;
+    CAddress addr;
+    bool fInbound;
+    
+    // Message handling
+    CDataStream vSend;
+    CDataStream vRecv;
+    int64_t nLastSend;
+    int64_t nLastRecv;
+    
+    // Block and transaction inventory
+    set<uint256> setInventoryKnown;
+    vector<CInv> vInventoryToSend;
+    
+    // Connection state
+    int nVersion;
+    bool fSuccessfullyConnected;
+    bool fDisconnect;
+    
+    // Methods
+    void PushMessage(const char* pszCommand, ...);
+    bool ProcessMessages();
+    bool SendMessages();
+};
+
+// Message types and commands
+enum
+{
+    MSG_TX = 1,
+    MSG_BLOCK = 2
+};
+
+extern vector<CNode*> vNodes;
+extern CCriticalSection cs_vNodes;
+
+// Network startup/shutdown
+bool StartNode(void* parg);
+bool StopNode();
+void AddOneShot(string strDest);

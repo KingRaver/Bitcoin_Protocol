@@ -1,0 +1,47 @@
+// main.cpp - Difficulty adjustment
+
+unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast)
+{
+    // Genesis block
+    if (pindexLast == NULL)
+        return bnProofOfWorkLimit.GetCompact();
+        
+    // Only adjust difficulty every 2016 blocks
+    if ((pindexLast->nHeight+1) % 2016 != 0)
+        return pindexLast->nBits;
+        
+    // Go back 2016 blocks
+    const CBlockIndex* pindexFirst = pindexLast;
+    for (int i = 0; i < 2015; i++)
+    {
+        if (pindexFirst->pprev == NULL)
+            return bnProofOfWorkLimit.GetCompact();
+        pindexFirst = pindexFirst->pprev;
+    }
+    
+    // Calculate actual timespan
+    int64_t nActualTimespan = pindexLast->GetBlockTime() - pindexFirst->GetBlockTime();
+    printf("  nActualTimespan = %"PRI64d"  before bounds\n", nActualTimespan);
+    
+    // Limit adjustment to 4x/0.25x
+    if (nActualTimespan < nTargetTimespan/4)
+        nActualTimespan = nTargetTimespan/4;
+    if (nActualTimespan > nTargetTimespan*4)
+        nActualTimespan = nTargetTimespan*4;
+        
+    // Retarget
+    CBigNum bnNew;
+    bnNew.SetCompact(pindexLast->nBits);
+    bnNew *= nActualTimespan;
+    bnNew /= nTargetTimespan;
+    
+    if (bnNew > bnProofOfWorkLimit)
+        bnNew = bnProofOfWorkLimit;
+        
+    printf("GetNextWorkRequired RETARGET\n");
+    printf("nTargetTimespan = %"PRI64d"    nActualTimespan = %"PRI64d"\n", nTargetTimespan, nActualTimespan);
+    printf("Before: %08x  %s\n", pindexLast->nBits, CBigNum().SetCompact(pindexLast->nBits).ToString().c_str());
+    printf("After:  %08x  %s\n", bnNew.GetCompact(), bnNew.ToString().c_str());
+    
+    return bnNew.GetCompact();
+}

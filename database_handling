@@ -1,0 +1,51 @@
+// db.h - Database functionality
+
+class CTxDB
+{
+protected:
+    CDB db;
+public:
+    CTxDB(const char* pszMode="r+");
+    ~CTxDB();
+    
+    bool ReadTxIndex(uint256 hash, CTxIndex& txindex);
+    bool WriteTxIndex(const vector<pair<uint256, CTxIndex> >& vTxIndex);
+    bool ReadDiskTx(uint256 hash, CTransaction& tx, CTxIndex& txindex);
+    bool ReadDiskTx(uint256 hash, CTransaction& tx);
+    bool ReadDiskTx(COutPoint outpoint, CTransaction& tx, CTxIndex& txindex);
+    bool ReadDiskTx(COutPoint outpoint, CTransaction& tx);
+    bool WriteBlockIndex(const CDiskBlockIndex& blockindex);
+    bool ReadHashBestChain(uint256& hashBestChain);
+    bool WriteHashBestChain(uint256 hashBestChain);
+    bool LoadBlockIndex();
+private:
+    bool LoadBlockIndexGuts();
+};
+
+class CWalletDB
+{
+protected:
+    CDB db;
+public:
+    CWalletDB(const char* pszMode="r+");
+    ~CWalletDB();
+    
+    bool ReadName(const string& strAddress, string& strName);
+    bool WriteName(const string& strAddress, const string& strName);
+    bool EraseName(const string& strAddress);
+    
+    bool ReadTx(uint256 hash, CWalletTx& wtx);
+    bool WriteTx(uint256 hash, const CWalletTx& wtx);
+    bool EraseTx(uint256 hash);
+    
+    bool ReadKey(const vector<unsigned char>& vchPubKey, CPrivKey& vchPrivKey);
+    bool WriteKey(const vector<unsigned char>& vchPubKey, const CPrivKey& vchPrivKey);
+    
+    bool ReadDefaultKey(vector<unsigned char>& vchPubKey);
+    bool WriteDefaultKey(const vector<unsigned char>& vchPubKey);
+    
+    bool ReadSetting(const string& strKey, string& strValue);
+    bool WriteSetting(const string& strKey, const string& strValue);
+    
+    bool LoadWallet(CWallet* pwallet);
+};

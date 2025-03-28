@@ -1,0 +1,58 @@
+// key.cpp - Address and key functions
+
+string GetBitcoinAddress(const CKeyID& keyID)
+{
+    vector<unsigned char> vch(20);
+    memcpy(&vch[0], &keyID, 20);
+    return EncodeBase58Check(vch);
+}
+
+bool SetBitcoinAddress(string strAddress, CKeyID& keyID)
+{
+    vector<unsigned char> vch;
+    if (!DecodeBase58Check(strAddress, vch))
+        return false;
+    if (vch.size() != 20)
+        return false;
+    memcpy(&keyID, &vch[0], 20);
+    return true;
+}
+
+CKey GenerateNewKey()
+{
+    RandAddSeedPerfmon();
+    
+    CKey key;
+    key.MakeNewKey();
+    
+    // Compressed keys not supported in the original Bitcoin client
+    if (!key.IsValid())
+        throw std::runtime_error("CWallet::GenerateNewKey() : could not generate a valid key");
+        
+    // Save to wallet
+    if (!AddKey(key))
+        throw std::runtime_error("CWallet::GenerateNewKey() : AddKey failed");
+        
+    return key;
+}
+
+bool CWallet::AddKey(const CKey& key)
+{
+    LOCK(cs_wallet);
+    
+    CKeyID keyID = key.GetPubKey().GetID();
+    
+    if (!AddKeyPubKey(key, key.GetPubKey()))
+        return false;
+        
+    if (!fFileBacked)
+        return true;
+        
+    if (!IsCrypted())
+        return CWalletDB(strWalletFile).WriteKey(key.GetPubKey(), 
+                                                 key.GetPrivKey());
+    else
+        return CWalletDB(strWalletFile).WriteCryptedKey(key.GetPubKey(),
+                                                        key.GetEncryptedPrivateKey(),
+                                                        vMasterKey);
+}

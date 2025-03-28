@@ -1,0 +1,66 @@
+// net.h - Network message structures
+
+// Network message format:
+// - 4 bytes: message start (magic bytes to identify network)
+// - 12 bytes: command name
+// - 4 bytes: payload size
+// - 4 bytes: checksum (first 4 bytes of double-SHA256 of payload)
+// - x bytes: payload
+
+static unsigned char pchMessageStart[4] = { 0xf9, 0xbe, 0xb4, 0xd9 }; // Bitcoin magic bytes
+
+class CMessageHeader
+{
+public:
+    CMessageHeader();
+    CMessageHeader(const char* pszCommand, unsigned int nDataSizeIn);
+    
+    char pchMessageStart[4];
+    char pchCommand[12];
+    unsigned int nDataSize;
+    unsigned int nChecksum;
+};
+
+// Message types
+class CAddress
+{
+public:
+    uint64_t nServices;
+    unsigned char pchReserved[12];
+    unsigned int nTime;
+    unsigned int nPort;
+    unsigned int nIP;
+    
+    CAddress();
+    CAddress(unsigned int nIPIn, unsigned int nPortIn=0);
+    
+    void print() const;
+};
+
+class CInv
+{
+public:
+    int type;
+    uint256 hash;
+    
+    CInv();
+    CInv(int typeIn, const uint256& hashIn);
+    
+    friend bool operator<(const CInv& a, const CInv& b);
+    
+    bool IsKnownType() const;
+    const char* GetCommand() const;
+    string ToString() const;
+};
+
+class CBlockLocator
+{
+public:
+    vector<uint256> vHave;
+    
+    CBlockLocator();
+    CBlockLocator(const CBlockIndex* pindex);
+    
+    void SetNull();
+    void Set(const CBlockIndex* pindex);
+};

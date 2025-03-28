@@ -1,0 +1,45 @@
+// main.h - Core blockchain definitions
+
+class CBlock
+{
+public:
+    // Block header
+    uint32_t nVersion;
+    uint256 hashPrevBlock;
+    uint256 hashMerkleRoot;
+    uint32_t nTime;
+    uint32_t nBits;
+    uint32_t nNonce;
+
+    // Block data
+    vector<CTransaction> vtx;
+
+    // Block methods
+    uint256 GetHash() const;
+    bool CheckBlock() const;
+    bool AcceptBlock();
+};
+
+class CBlockIndex
+{
+public:
+    CBlockIndex* pPrev;
+    CBlockIndex* pNext;
+    uint256 blockHash;
+    
+    int nHeight;
+    uint256 nChainWork;  // Total work in chain up to this block
+
+    // Block header info
+    uint32_t nVersion;
+    uint256 hashMerkleRoot;
+    uint32_t nTime;
+    uint32_t nBits;
+    uint32_t nNonce;
+};
+
+// Global state
+extern map<uint256, CBlock*> mapBlocks;
+extern map<uint256, CBlockIndex*> mapBlockIndex;
+extern CBlockIndex* pindexGenesisBlock;
+extern CBlockIndex* pindexBest;

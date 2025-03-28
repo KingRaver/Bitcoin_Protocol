@@ -1,0 +1,74 @@
+// main.cpp - Memory pool functions
+
+typedef map<uint256, CTransaction> mapTransactions_t;
+extern mapTransactions_t mapTransactions;
+CCriticalSection cs_mapTransactions;
+
+bool AddToMemoryPool(const CTransaction& tx)
+{
+    // Basic transaction checks
+    if (!tx.IsValid())
+        return error("AddToMemoryPool() : not a valid transaction");
+        
+    // Check for duplicate
+    uint256 hash = tx.GetHash();
+    {
+        LOCK(cs_mapTransactions);
+        if (mapTransactions.count(hash))
+            return false;
+    }
+    
+    // Check inputs
+    map<uint256, CTxIndex> mapUnused;
+    bool fValid = tx.FetchInputs(mapUnused);
+    if (!fValid)
+        return error("AddToMemoryPool() : FetchInputs failed %s", hash.ToString().substr(0,10).c_str());
+        
+    // Check for conflicts with in-memory transactions
+    for (unsigned int i = 0; i < tx.vin.size(); i++)
+    {
+        COutPoint outpoint = tx.vin[i].prevout;
+        if (mapNextTx.count(outpoint))
+            return false;
+    }
+    
+    // Store transaction in memory
+    {
+        LOCK(cs_mapTransactions);
+        mapTransactions[hash] = tx;
+        for (unsigned int i = 0; i < tx.vin.size(); i++)
+            mapNextTx[tx.vin[i].prevout] = CInPoint(hash, i);
+    }
+    
+    // Notify network of new transaction
+    RelayTransaction(tx, hash);
+    
+    return true;
+}
+
+vector<CTransaction> GetMemoryPool()
+{
+    vector<CTransaction> vtx;
+    {
+        LOCK(cs_mapTransactions);
+        vtx.reserve(mapTransactions.size());
+        for (mapTransactions_t::iterator mi = mapTransactions.begin(); mi != mapTransactions.end(); ++mi)
+            vtx.push_back((*mi).second);
+    }
+    return vtx;
+}
+
+void RemoveFromMemoryPool(const CTransaction& tx)
+{
+    // Remove transaction from memory pool
+    {
+        LOCK(cs_mapTransactions);
+        uint256 hash = tx.GetHash();
+        if (mapTransactions.count(hash))
+        {
+            for (unsigned int i = 0; i < tx.vin.size(); i++)
+                mapNextTx.erase(tx.vin[i].prevout);
+            mapTransactions.erase(hash);
+        }
+    }
+}

@@ -1,0 +1,46 @@
+// script.h - Bitcoin's scripting system
+
+class CScript : public vector<unsigned char>
+{
+public:
+    // Script operations
+    bool Evaluate(const CTransaction& txTo, unsigned int nIn) const;
+    
+    // Common script templates
+    static CScript CreatePayToPubkeyHash(uint160 hash160);
+    static CScript CreatePayToPubkey(vector<unsigned char> vchPubKey);
+    
+    // Script parsing
+    bool GetOp(iterator& pc, opcodetype& opcodeRet, vector<unsigned char>& vchRet);
+    bool IsPayToPubkeyHash() const;
+    bool IsPayToPubkey() const;
+    bool GetPubKey(vector<unsigned char>& pubKeyOut) const;
+    bool GetHash160(uint160& hashOut) const;
+};
+
+// Script operations
+enum opcodetype
+{
+    // Stack operations
+    OP_0 = 0x00,
+    OP_PUSHDATA1 = 0x4c,
+    OP_PUSHDATA2 = 0x4d,
+    OP_PUSHDATA4 = 0x4e,
+    OP_1 = 0x51,
+    // ...
+    
+    // Flow control
+    OP_IF = 0x63,
+    OP_ELSE = 0x67,
+    OP_ENDIF = 0x68,
+    
+    // Crypto operations
+    OP_CHECKSIG = 0xac,
+    OP_CHECKMULTISIG = 0xae,
+    
+    // More opcodes omitted for brevity
+};
+
+// Script verification
+bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, 
+                     unsigned int nIn, bool fValidatePayToScriptHash);

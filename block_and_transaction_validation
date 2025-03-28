@@ -1,0 +1,90 @@
+// main.cpp - Block and transaction validation
+
+bool CBlock::CheckBlock() const
+{
+    // Size limits
+    if (vtx.empty() || vtx.size() > MAX_BLOCK_SIZE || ::GetSerializeSize(*this, SER_NETWORK) > MAX_BLOCK_SIZE)
+        return error("CheckBlock() : size limits failed");
+        
+    // Check timestamp
+    if (GetBlockTime() > GetAdjustedTime() + 2 * 60 * 60)
+        return error("CheckBlock() : block timestamp too far in the future");
+        
+    // First transaction must be coinbase
+    if (vtx.empty() || !vtx[0].IsCoinBase())
+        return error("CheckBlock() : first tx is not coinbase");
+        
+    // Check coinbase timestamp
+    if (GetBlockTime() < (int64_t)vtx[0].nTime)
+        return error("CheckBlock() : coinbase timestamp is too early");
+        
+    // Check transactions
+    for (int i = 0; i < vtx.size(); i++)
+    {
+        const CTransaction& tx = vtx[i];
+        if (!tx.CheckTransaction())
+            return error("CheckBlock() : CheckTransaction failed");
+            
+        // Only one coinbase allowed
+        if (i > 0 && tx.IsCoinBase())
+            return error("CheckBlock() : more than one coinbase");
+    }
+    
+    // Check merkle root
+    if (hashMerkleRoot != BuildMerkleTree())
+        return error("CheckBlock() : hashMerkleRoot mismatch");
+        
+    // Check proof of work
+    if (!CheckProofOfWork(GetHash(), nBits))
+        return error("CheckBlock() : proof of work failed");
+        
+    return true;
+}
+
+bool CTransaction::CheckTransaction() const
+{
+    // Basic checks that don't depend on any context
+    if (vin.empty() || vout.empty())
+        return error("CTransaction::CheckTransaction() : vin or vout empty");
+        
+    // Size limits
+    if (::GetSerializeSize(*this, SER_NETWORK) > MAX_BLOCK_SIZE)
+        return error("CTransaction::CheckTransaction() : size limits failed");
+        
+    // Check for negative output values
+    int64_t nValueOut = 0;
+    for (int i = 0; i < vout.size(); i++)
+    {
+        const CTxOut& txout = vout[i];
+        if (txout.nValue < 0)
+            return error("CTransaction::CheckTransaction() : txout.nValue negative");
+        if (txout.nValue > MAX_MONEY)
+            return error("CTransaction::CheckTransaction() : txout.nValue too high");
+        nValueOut += txout.nValue;
+        if (nValueOut > MAX_MONEY)
+            return error("CTransaction::CheckTransaction() : txout total out of range");
+    }
+    
+    // Check for duplicate inputs
+    set<COutPoint> vInOutPoints;
+    for (int i = 0; i < vin.size(); i++)
+    {
+        if (vInOutPoints.count(vin[i].prevout))
+            return false;
+        vInOutPoints.insert(vin[i].prevout);
+    }
+    
+    if (IsCoinBase())
+    {
+        if (vin[0].scriptSig.size() < 2 || vin[0].scriptSig.size() > 100)
+            return error("CTransaction::CheckTransaction() : coinbase script size");
+    }
+    else
+    {
+        for (int i = 0; i < vin.size(); i++)
+            if (vin[i].prevout.IsNull())
+                return error("CTransaction::CheckTransaction() : prevout is null");
+    }
+    
+    return true;
+}

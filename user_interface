@@ -1,0 +1,61 @@
+// ui.h - User interface elements
+
+class CMainFrame : public CFrameWnd
+{
+protected:
+    CStatusBar  m_wndStatusBar;
+    CToolBar    m_wndToolBar;
+    CListCtrl   m_listTransactions;
+
+public:
+    CMainFrame();
+    
+    afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
+    afx_msg void OnPaint();
+    afx_msg void OnDestroy();
+    afx_msg void OnSize(UINT nType, int cx, int cy);
+    
+    void StartShutdown();
+    void UpdateStatusBar();
+    void UpdateControls();
+};
+
+class CBitcoinApp : public CWinApp
+{
+public:
+    CBitcoinApp();
+    
+    virtual BOOL InitInstance();
+    virtual int ExitInstance();
+    
+    afx_msg void OnFileExit();
+    afx_msg void OnOptionsGenerate();
+    afx_msg void OnUpdateOptionsGenerate(CCmdUI* pCmdUI);
+    afx_msg void OnOptionsSendcoins();
+    afx_msg void OnUpdateOptionsSendcoins(CCmdUI* pCmdUI);
+    afx_msg void OnOptionsOptions();
+    afx_msg void OnUpdateOptionsOptions(CCmdUI* pCmdUI);
+    afx_msg void OnHelpAbout();
+};
+
+// Dialog interfaces
+class CSendDialog : public CDialog
+{
+protected:
+    CButton m_buttonSend;
+    CEdit m_editAddress;
+    CEdit m_editAmount;
+    
+public:
+    CSendDialog(CWnd* pParent = NULL);
+    bool SendCoins();
+};
+
+class COptionsDialog : public CDialog
+{
+public:
+    COptionsDialog(CWnd* pParent = NULL);
+    
+    afx_msg void OnOK();
+    afx_msg void OnCancel();
+};

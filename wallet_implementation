@@ -1,0 +1,50 @@
+// wallet.h - Bitcoin wallet functionality
+
+class CWallet
+{
+public:
+    // Wallet data
+    map<uint256, CWalletTx> mapWallet;
+    map<vector<unsigned char>, CPrivKey> mapPrivateKeys;
+    map<uint160, vector<unsigned char> > mapPubKeys;
+    
+    // Wallet operations
+    bool AddKey(const CKey& key);
+    bool AddToWallet(const CWalletTx& wtxIn);
+    bool EraseFromWallet(uint256 hash);
+    
+    // Transaction creation
+    bool CreateTransaction(const vector<pair<CScript, int64_t> >& vecSend, CWalletTx& wtxNew, 
+                          CReserveKey& reservekey, int64_t& nFeeRet);
+    bool SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew);
+    
+    // Balance calculation
+    int64_t GetBalance() const;
+    int64_t GetUnconfirmedBalance() const;
+    
+    // Key management
+    bool GetTransaction(const uint256& hashTx, CWalletTx& wtx);
+    bool GetSecret(const CKeyID &address, CSecret &vchSecret) const;
+};
+
+class CWalletTx : public CTransaction
+{
+public:
+    // Transaction metadata
+    uint256 hashBlock;
+    vector<CMerkleTx> vtxPrev;
+    map<string, string> mapValue;
+    
+    // Status tracking
+    int GetDepthInMainChain() const;
+    bool IsConfirmed() const;
+    int GetBlocksToMaturity() const;
+    
+    // Money tracking
+    int64_t GetDebit() const;
+    int64_t GetCredit() const;
+    int64_t GetChange() const;
+    void GetAmounts(int64_t& nGeneratedImmature, int64_t& nGeneratedMature, 
+                   list<pair<CTxDestination, int64_t> >& listReceived,
+                   list<pair<CTxDestination, int64_t> >& listSent, int64_t& nFee) const;
+};

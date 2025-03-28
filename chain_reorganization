@@ -1,0 +1,67 @@
+// main.cpp - Chain reorganization
+
+void Reorganize(CTxDB& txdb, CBlockIndex* pindexNew)
+{
+    printf("REORGANIZE\n");
+    
+    // Find the fork point
+    CBlockIndex* pfork = pindexBest;
+    CBlockIndex* plonger = pindexNew;
+    while (pfork != plonger)
+    {
+        while (plonger->nHeight > pfork->nHeight)
+            plonger = plonger->pprev;
+        if (pfork == plonger)
+            break;
+        pfork = pfork->pprev;
+    }
+    
+    // Disconnect blocks from the main chain
+    CBlockIndex* pindex = pindexBest;
+    while (pindex != pfork)
+    {
+        printf("Disconnect %s\n", pindex->GetBlockHash().ToString().substr(0,20).c_str());
+        if (!pindex->pprev->IsValid())
+            return;
+        
+        CBlock block;
+        if (!block.ReadFromDisk(pindex))
+            return;
+        
+        // Disconnect all transactions
+        for (int i = block.vtx.size()-1; i >= 0; i--)
+            DisconnectInputs(block.vtx[i]);
+        
+        pindex = pindex->pprev;
+    }
+    
+    // Connect new blocks to the main chain
+    vector<CBlockIndex*> vConnect;
+    for (CBlockIndex* pindex = pindexNew; pindex != pfork; pindex = pindex->pprev)
+        vConnect.push_back(pindex);
+    reverse(vConnect.begin(), vConnect.end());
+    
+    for (int i = 0; i < vConnect.size(); i++)
+    {
+        CBlockIndex* pindex = vConnect[i];
+        printf("Connect %s\n", pindex->GetBlockHash().ToString().substr(0,20).c_str());
+        
+        CBlock block;
+        if (!block.ReadFromDisk(pindex))
+            return;
+        
+        // Connect all transactions
+        for (int i = 0; i < block.vtx.size(); i++)
+            if (!ConnectInputs(block.vtx[i], false))
+                return;
+    }
+    
+    // Update best chain
+    pindexBest = pindexNew;
+    nBestHeight = pindexBest->nHeight;
+    txdb.WriteHashBestChain(pindexBest->GetBlockHash());
+    
+    // Relay the new best chain to nodes
+    if (!IsInitialBlockDownload())
+        RelayInventory(CInv(MSG_BLOCK, pindexBest->GetBlockHash()));
+}

@@ -1,0 +1,84 @@
+// main.cpp - Block chain functions
+
+bool ProcessBlock(CNode* pfrom, CBlock* pblock)
+{
+    // Check block validity
+    if (!pblock->CheckBlock())
+        return error("ProcessBlock() : CheckBlock FAILED");
+        
+    // Check for duplicate
+    uint256 hash = pblock->GetHash();
+    if (mapBlockIndex.count(hash))
+        return error("ProcessBlock() : already have block %s", hash.ToString().substr(0,20).c_str());
+    if (mapOrphanBlocks.count(hash))
+        return error("ProcessBlock() : already have block (orphan) %s", hash.ToString().substr(0,20).c_str());
+        
+    // Accept block to the chain
+    if (!pblock->AcceptBlock())
+        return error("ProcessBlock() : AcceptBlock FAILED");
+        
+    // Process orphan blocks that depend on this one
+    vector<uint256> vWorkQueue;
+    vWorkQueue.push_back(hash);
+    for (unsigned int i = 0; i < vWorkQueue.size(); i++)
+    {
+        uint256 hashPrev = vWorkQueue[i];
+        for (map<uint256, CBlock*>::iterator mi = mapOrphanBlocksByPrev[hashPrev].begin();
+             mi != mapOrphanBlocksByPrev[hashPrev].end(); ++mi)
+        {
+            CBlock* pblockOrphan = (*mi).second;
+            if (pblockOrphan->AcceptBlock())
+                vWorkQueue.push_back(pblockOrphan->GetHash());
+            mapOrphanBlocks.erase(pblockOrphan->GetHash());
+            delete pblockOrphan;
+        }
+        mapOrphanBlocksByPrev.erase(hashPrev);
+    }
+    
+    // Tell network we have a new block
+    if (!pfrom)
+        RelayInventory(CInv(MSG_BLOCK, hash));
+        
+    return true;
+}
+
+bool CBlock::AcceptBlock()
+{
+    // Check proof-of-work
+    if (!CheckProofOfWork(GetHash(), nBits))
+        return error("AcceptBlock() : proof of work failed");
+        
+    // Check timestamp against prev
+    if (GetBlockTime() <= pindexPrev->GetMedianTimePast())
+        return error("AcceptBlock() : block's timestamp is too early");
+        
+    // Check that all transactions are valid
+    for (int i = 0; i < vtx.size(); i++)
+    {
+        if (!vtx[i].CheckTransaction())
+            return error("AcceptBlock() : CheckTransaction failed");
+    }
+    
+    // Add to block index
+    CBlockIndex* pindexNew = new CBlockIndex(pindexPrev, this);
+    if (!pindexNew)
+        return error("AcceptBlock() : new CBlockIndex failed");
+    mapBlockIndex[hashBlock] = pindexNew;
+    
+    // Connect to main chain
+    if (!ConnectBlock(pindexNew))
+    {
+        pindexNew->pnext = NULL;
+        return false;
+    }
+    
+    // Relay new block
+    if (!IsInitialBlockDownload())
+        RelayInventory(CInv(MSG_BLOCK, hashBlock));
+        
+    // Update best block
+    if (pindexNew->nChainTrust > nBestChainTrust)
+        SetBestChain(pindexNew);
+        
+    return true;
+}

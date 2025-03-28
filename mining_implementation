@@ -1,0 +1,75 @@
+// main.cpp - Mining functions
+
+bool CheckProofOfWork(uint256 hash, unsigned int nBits)
+{
+    // Check range
+    uint256 bnTarget;
+    bnTarget.SetCompact(nBits);
+    
+    if (bnTarget <= 0 || bnTarget > bnProofOfWorkLimit)
+        return false;
+        
+    // Check proof of work matches claimed amount
+    if (hash > bnTarget)
+        return false;
+        
+    return true;
+}
+
+bool CreateNewBlock(CBlock* pblock, CWallet* pwallet)
+{
+    // Create coinbase transaction
+    CTransaction txNew;
+    txNew.vin.resize(1);
+    txNew.vin[0].prevout.SetNull();
+    txNew.vout.resize(1);
+    txNew.vout[0].scriptPubKey << pwallet->GetKeyFromKeyPool();
+    txNew.vout[0].nValue = GetBlockValue(pindexBest->nHeight+1, 0);
+    
+    // Add our coinbase transaction as the first transaction
+    pblock->vtx.push_back(txNew);
+    
+    // Collect transactions from memory pool
+    vector<CTransaction> vtx = GetMemoryPool();
+    for (int i = 0; i < vtx.size(); i++)
+    {
+        if (pblock->vtx.size() >= MAX_BLOCK_SIZE)
+            break;
+        if (!vtx[i].IsFinal() || !vtx[i].IsStandard())
+            continue;
+        pblock->vtx.push_back(vtx[i]);
+    }
+    
+    // Set block header values
+    pblock->nVersion = 1;
+    pblock->hashPrevBlock = pindexBest->GetBlockHash();
+    pblock->hashMerkleRoot = pblock->BuildMerkleTree();
+    pblock->nTime = max(pindexBest->GetMedianTimePast()+1, GetAdjustedTime());
+    pblock->nBits = GetNextWorkRequired(pindexBest);
+    pblock->nNonce = 0;
+    
+    return true;
+}
+
+void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& nExtraNonce)
+{
+    // Update extra nonce in coinbase transaction
+    CTransaction& txCoinbase = pblock->vtx[0];
+    CScript script = txCoinbase.vin[0].scriptSig;
+    
+    if (script.size() < 4 || script[0] != 0x04 || nExtraNonce >= 0xffff)
+    {
+        script.clear();
+        script << 0x04 << nExtraNonce;
+        nExtraNonce = 1;
+    }
+    else
+    {
+        nExtraNonce++;
+        script[1] = nExtraNonce & 0xff;
+        script[2] = (nExtraNonce >> 8) & 0xff;
+    }
+    
+    txCoinbase.vin[0].scriptSig = script;
+    pblock->hashMerkleRoot = pblock->BuildMerkleTree();
+}
